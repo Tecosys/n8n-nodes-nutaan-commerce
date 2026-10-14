@@ -1,0 +1,134 @@
+{
+  "name": "Nutaan Commerce — COD verification (configure before activation)",
+  "nodes": [
+    {
+      "parameters": {
+        "store": "YOUR_STORE_SLUG",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "id": "cod-trigger",
+      "name": "COD Updates",
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerceTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getCod",
+        "store": "YOUR_STORE_SLUG",
+        "verificationId": "={{ $json.verification._id }}",
+        "resource": "cod"
+      },
+      "id": "read-cod",
+      "name": "Read Current COD State",
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "pending",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "pending-only",
+      "name": "Pending Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "contactCod",
+        "store": "YOUR_STORE_SLUG",
+        "verificationId": "={{ $json._id }}",
+        "revision": "={{ $json.revision }}",
+        "channel": "email",
+        "confirmed": false,
+        "resource": "cod"
+      },
+      "id": "contact-cod",
+      "name": "Request COD Contact — Disabled Until Authorized",
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "COD Updates": {
+      "main": [
+        [
+          {
+            "node": "Read Current COD State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Current COD State": {
+      "main": [
+        [
+          {
+            "node": "Pending Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pending Only": {
+      "main": [
+        [
+          {
+            "node": "Request COD Contact — Disabled Until Authorized",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
