@@ -102,3 +102,27 @@ test('manual samples do not mutate production polling state', async () => {
     helpers: { httpRequestWithAuthentication: async (_credential, options) => { assert.equal(options.qs.cursor, undefined); return { data: [{ id: 'old' }], nextCursor: null }; } } });
   assert.equal(JSON.stringify(state), before);
 });
+
+test('automation ingestion and return changes are blocked without authorization',async()=>{
+ for(const operation of ['upsertRecord','createReturn','manageReturn']){let calls=0;await assert.rejects(action.execute.call({...base,getNodeParameter:n=>({operation,store:'alpha',authorizeChanges:false,returnData:'{}'}[n]),helpers:{httpRequestWithAuthentication:async()=>{calls++;}}}));assert.equal(calls,0);}
+});
+test('automation contact is disabled until authorized and excludes arbitrary body fields',async()=>{
+ let request;const params={operation:'contactRecord',store:'alpha',recordId:'record-1',sourceVersion:3,channel:'whatsapp',confirmed:false};
+ const context={...base,getNodeParameter:n=>params[n],helpers:{httpRequestWithAuthentication:async(_,options)=>{request=options;return {actionId:'claim'};}}};
+ await assert.rejects(action.execute.call(context));assert.equal(request,undefined);
+ params.confirmed=true;await action.execute.call(context);assert.equal(request.url,'https://nutaan.com/api/commerce/integrations/v1/stores/alpha/automation/records/record-1/contact');assert.deepEqual(Object.keys(request.body).sort(),['channel','confirmed','sourceVersion']);
+});
+test('return processing forwards the fresh quote token and requires authorization',async()=>{
+ let request;await action.execute.call({...base,getNodeParameter:n=>({operation:'manageReturn',store:'alpha',authorizeChanges:true,returnData:JSON.stringify({reference:'RMA-1234567890AB',operation:'process',token:'fresh-quote',store:'other',agentId:'other'})}[n]),helpers:{httpRequestWithAuthentication:async(_,options)=>{request=options;return {ok:true};}}});
+ assert.equal(request.url,'https://nutaan.com/api/commerce/integrations/v1/stores/alpha/returns/RMA-1234567890AB/process');assert.deepEqual(Object.keys(request.body).sort(),['confirmed','token']);assert.equal(request.body.token,'fresh-quote');
+});
+test('automation trigger uses configured event feed with an independent source checkpoint',async()=>{
+ const state={store:'alpha',eventSource:'automation',since:'2026-10-14T00:00:00Z',seen:[]};let url;
+ await trigger.poll.call({...base,getNodeParameter:n=>n==='eventSource'?'automation':'alpha',getWorkflowStaticData:()=>state,getMode:()=> 'trigger',helpers:{httpRequestWithAuthentication:async(_,options)=>{url=options.url;return {data:[{id:'one',record:{kind:'cart'}}],nextCursor:null};}}});
+ assert(url.endsWith('/automation/events'));assert.equal(state.eventSource,'automation');
+});
+
+test('COD outcome requires authorization and only forwards the verified outcome fields',async()=>{
+ let request;const params={operation:'resolveCod',store:'alpha',verificationId:'verification',revision:4,authorizeChanges:false,outcomeData:JSON.stringify({status:'confirmed',agentId:'other'})};const context={...base,getNodeParameter:n=>params[n],helpers:{httpRequestWithAuthentication:async(_,options)=>{request=options;return {status:'confirmed'};}}};
+ await assert.rejects(action.execute.call(context));assert.equal(request,undefined);params.authorizeChanges=true;await action.execute.call(context);assert(request.url.endsWith('/cod/verification/outcome'));assert.deepEqual(Object.keys(request.body).sort(),['confirmed','revision','status']);
+});

@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-nutaan-commerce",
   "version": "0.1.0",
-  "description": "Nutaan Commerce orders, COD verification and returns for n8n",
+  "description": "Nutaan Commerce cart recovery, COD verification, delivery assistance and returns for n8n",
   "license": "MIT",
   "keywords": [
     "n8n-community-node-package",

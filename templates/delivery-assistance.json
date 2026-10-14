@@ -1,0 +1,137 @@
+{
+  "name": "Nutaan Commerce — Pre and Post Delivery Assistance (configure before activation)",
+  "nodes": [
+    {
+      "id": "verified-store-webhook",
+      "name": "Verified Store Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nutaan-delivery-assistance",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "save-store-event",
+      "name": "Save Store Event",
+      "parameters": {
+        "resource": "automation",
+        "operation": "upsertRecord",
+        "store": "YOUR_STORE_SLUG",
+        "eventData": "={{ JSON.stringify($json.body) }}",
+        "authorizeChanges": false
+      },
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        250,
+        0
+      ]
+    },
+    {
+      "id": "wait-until-contact-window",
+      "name": "Wait Until Contact Window",
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $json.contactAfter }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "id": "read-current-record",
+      "name": "Read Current Record",
+      "parameters": {
+        "resource": "automation",
+        "operation": "getRecord",
+        "store": "YOUR_STORE_SLUG",
+        "recordId": "={{ $json._id }}"
+      },
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        750,
+        0
+      ]
+    },
+    {
+      "id": "contact-customer",
+      "name": "Contact Customer",
+      "parameters": {
+        "resource": "automation",
+        "operation": "contactRecord",
+        "store": "YOUR_STORE_SLUG",
+        "recordId": "={{ $json._id }}",
+        "sourceVersion": "={{ $json.sourceVersion }}",
+        "channel": "email",
+        "confirmed": false
+      },
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Verified Store Webhook": {
+      "main": [
+        [
+          {
+            "node": "Save Store Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Store Event": {
+      "main": [
+        [
+          {
+            "node": "Wait Until Contact Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Until Contact Window": {
+      "main": [
+        [
+          {
+            "node": "Read Current Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Current Record": {
+      "main": [
+        [
+          {
+            "node": "Contact Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

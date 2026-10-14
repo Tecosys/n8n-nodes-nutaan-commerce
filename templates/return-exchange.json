@@ -1,0 +1,82 @@
+{
+  "name": "Nutaan Commerce — Return and Exchange Request (configure before activation)",
+  "nodes": [
+    {
+      "id": "verified-return-webhook",
+      "name": "Verified Return Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nutaan-return-exchange",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "check-return-eligibility",
+      "name": "Check Return Eligibility",
+      "parameters": {
+        "resource": "return",
+        "operation": "returnEligibility",
+        "store": "YOUR_STORE_SLUG",
+        "returnData": "={{ JSON.stringify({orderNumber:$json.body.orderNumber,email:$json.body.email}) }}"
+      },
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        250,
+        0
+      ]
+    },
+    {
+      "id": "create-return-or-exchange",
+      "name": "Create Return or Exchange",
+      "parameters": {
+        "resource": "return",
+        "operation": "createReturn",
+        "store": "YOUR_STORE_SLUG",
+        "returnData": "={{ JSON.stringify($('Verified Return Webhook').first().json.body) }}",
+        "authorizeChanges": false
+      },
+      "type": "n8n-nodes-nutaan-commerce.nutaanCommerce",
+      "typeVersion": 1,
+      "position": [
+        500,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Verified Return Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Return Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Return Eligibility": {
+      "main": [
+        [
+          {
+            "node": "Create Return or Exchange",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
