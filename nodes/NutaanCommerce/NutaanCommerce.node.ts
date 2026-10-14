@@ -1,6 +1,8 @@
 import { NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IHttpRequestOptions, IDataObject } from 'n8n-workflow';
 
+import { apiBaseUrl } from '../shared/api';
+
 export class NutaanCommerce implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Nutaan Commerce', name: 'nutaanCommerce', group: ['transform'], version: 1,
@@ -30,12 +32,14 @@ export class NutaanCommerce implements INodeType {
     ],
   };
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+    const credentials = await this.getCredentials('nutaanCommerceApi');
+    const baseUrl = apiBaseUrl(credentials.baseUrl, this.getNode());
     const output: INodeExecutionData[] = [];
     for (let i = 0; i < this.getInputData().length; i++) {
       try {
         const op = this.getNodeParameter('operation', i) as string;
         let path = '/stores';
-        const options: IHttpRequestOptions = { url: '', method: 'GET', json: true, timeout: 30000 };
+        const options: IHttpRequestOptions = { url: '', method: 'GET', json: true, timeout: 30000, disableFollowRedirect: true };
         if (op !== 'listStores') {
           const store = this.getNodeParameter('store', i) as string;
           if (!/^[a-z0-9][a-z0-9-]{1,48}$/.test(store)) throw new NodeOperationError(this.getNode(), 'Enter a valid store slug.', { itemIndex: i });
@@ -54,7 +58,7 @@ export class NutaanCommerce implements INodeType {
             }
           } else throw new NodeOperationError(this.getNode(), 'Unsupported operation.', { itemIndex: i });
         }
-        options.url = `https://nutaan.com/api/commerce/integrations/v1${path}`;
+        options.url = `${baseUrl}${path}`;
         const result: IDataObject = await this.helpers.httpRequestWithAuthentication.call(this, 'nutaanCommerceApi', options);
         output.push({ json: result, pairedItem: { item: i } });
       } catch (error) {

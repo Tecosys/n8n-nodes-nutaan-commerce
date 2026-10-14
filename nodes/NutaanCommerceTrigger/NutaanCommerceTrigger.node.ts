@@ -1,5 +1,6 @@
 import type { IPollFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
+import { apiBaseUrl, DEFAULT_BASE_URL } from '../shared/api';
 
 export class NutaanCommerceTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -12,32 +13,44 @@ export class NutaanCommerceTrigger implements INodeType {
   async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {
     const store = this.getNodeParameter('store') as string;
     if (!/^[a-z0-9][a-z0-9-]{1,48}$/.test(store)) throw new NodeOperationError(this.getNode(), 'Enter a valid store slug.');
+    const credentials = await this.getCredentials('nutaanCommerceApi');
+    const baseUrl = apiBaseUrl(credentials.baseUrl, this.getNode());
     const state = this.getWorkflowStaticData('node');
     const now = new Date().toISOString();
-    if (this.getMode() !== 'manual' && state.store !== store) {
-      // No historical customer-contact backfill on first activation or store change.
-      state.store = store; state.since = now; return null;
+    const manual = this.getMode() === 'manual';
+    const sameSource = state.store === store && (state.baseUrl || DEFAULT_BASE_URL) === baseUrl;
+    if (!manual && !sameSource) {
+      // Reset every checkpoint when the tenant or environment changes.
+      Object.assign(state, { store, baseUrl, since: now, seen: [], cursor: null, batchSince: null, batchStartedAt: null });
+      return null;
     }
-    const since = this.getMode() === 'manual' ? new Date(Date.now() - 24 * 3600000).toISOString() : String(state.since || now);
-    let cursor: string | null = null;
+    const since = manual ? new Date(Date.now() - 24 * 3600000).toISOString() : String(state.batchSince || state.since || now);
+    const startedAt = manual ? now : String(state.batchStartedAt || now);
+    let cursor: string | null = manual ? null : typeof state.cursor === 'string' ? state.cursor : null;
     const output: INodeExecutionData[] = [];
-    const seen = new Set<string>(Array.isArray(state.seen) ? state.seen as string[] : []);
-    // Complete pagination before advancing checkpoint; failure leaves it unchanged.
-    for (let page = 0; page < 100; page++) {
+    const seen = new Set<string>(!manual && Array.isArray(state.seen) ? state.seen as string[] : []);
+    // Bounded chunks drain large backlogs across polls. No checkpoint mutation on failure.
+    for (let page = 0; page < 10; page++) {
       const result: { data: IDataObject[]; nextCursor: string | null } = await this.helpers.httpRequestWithAuthentication.call(this, 'nutaanCommerceApi', {
-        method: 'GET', url: `https://nutaan.com/api/commerce/integrations/v1/stores/${encodeURIComponent(store)}/cod/events`,
-        qs: { since, ...(cursor ? { cursor } : {}), limit: 100 }, json: true, timeout: 30000,
+        method: 'GET', url: `${baseUrl}/stores/${encodeURIComponent(store)}/cod/events`,
+        qs: { since, ...(cursor ? { cursor } : {}), limit: 100 }, json: true, timeout: 30000, disableFollowRedirect: true,
       });
-      if (!Array.isArray(result.data)) throw new NodeOperationError(this.getNode(), 'Unexpected event response.');
+      if (!Array.isArray(result.data) || result.data.some(event => typeof event.id !== 'string' || !event.id) ||
+          (result.nextCursor != null && (typeof result.nextCursor !== 'string' || !result.nextCursor)) ||
+          (result.nextCursor && result.nextCursor === cursor)) throw new NodeOperationError(this.getNode(), 'Unexpected event response or non-advancing cursor.');
       for (const event of result.data) if (!seen.has(String(event.id))) { seen.add(String(event.id)); output.push({ json: event }); }
       cursor = result.nextCursor || null;
       if (!cursor) break;
-      if (page === 99) throw new NodeOperationError(this.getNode(), 'Event backlog exceeds one poll. Reduce the polling interval or contact Nutaan support.');
     }
-    if (this.getMode() !== 'manual') {
-      // Overlap catches delayed visibility; action-level deduplication remains authoritative.
-      state.since = new Date(new Date(now).getTime() - 60000).toISOString();
-      state.seen = [...seen].slice(-10000);
+    if (!manual) {
+      if (cursor) {
+        // Keep the batch's original watermark until all remaining pages have drained.
+        Object.assign(state, { store, baseUrl, cursor, batchSince: since, batchStartedAt: startedAt, seen: [...seen].slice(-10000) });
+      } else {
+        // Use the batch start, not its completion time, so updates during draining are revisited.
+        Object.assign(state, { store, baseUrl, cursor: null, batchSince: null, batchStartedAt: null,
+          since: new Date(new Date(startedAt).getTime() - 60000).toISOString(), seen: [...seen].slice(-10000) });
+      }
     }
     return output.length ? [output] : null;
   }
