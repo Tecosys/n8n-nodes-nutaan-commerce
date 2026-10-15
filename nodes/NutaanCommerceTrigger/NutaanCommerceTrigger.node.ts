@@ -1,4 +1,4 @@
-import type { IPollFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
+import type { IPollFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
 import { NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
 import { apiBaseUrl, DEFAULT_BASE_URL } from '../shared/api';
 
@@ -8,7 +8,30 @@ export class NutaanCommerceTrigger implements INodeType {
     description: 'Poll COD or store automation updates after activation', defaults: { name: 'Nutaan Commerce Trigger' },
     inputs: [], outputs: [NodeConnectionTypes.Main], polling: true, icon: { light: 'file:nutaan.svg', dark: 'file:nutaan.dark.svg' }, subtitle: '={{$parameter.eventSource || "cod"}}',
     credentials: [{ name: 'nutaanCommerceApi', required: true }],
-    properties: [{ displayName: 'Event Source', name: 'eventSource', type: 'options', default: 'cod', options: [{ name: 'COD Verification', value: 'cod' }, { name: 'Store Automations', value: 'automation' }] }, { displayName: 'Poll Times', name: 'pollTimes', type: 'fixedCollection', typeOptions: { multipleValues: true }, default: { item: [{ mode: 'everyMinute' }] }, options: [{ name: 'item', displayName: 'Item', values: [{ displayName: 'Mode', name: 'mode', type: 'options', options: [{ name: 'Every Minute', value: 'everyMinute' }, { name: 'Every Hour', value: 'everyHour' }], default: 'everyMinute' }] }] }, { displayName: 'Store Slug', name: 'store', type: 'string', default: '', required: true }],
+    properties: [
+      { displayName: 'Event Source', name: 'eventSource', type: 'options', default: 'cod', options: [{ name: 'COD Verification', value: 'cod' }, { name: 'Store Automations', value: 'automation' }] },
+      { displayName: 'Poll Times', name: 'pollTimes', type: 'fixedCollection', typeOptions: { multipleValues: true }, default: { item: [{ mode: 'everyMinute' }] }, options: [{ name: 'item', displayName: 'Item', values: [{ displayName: 'Mode', name: 'mode', type: 'options', options: [{ name: 'Every Minute', value: 'everyMinute' }, { name: 'Every Hour', value: 'everyHour' }], default: 'everyMinute' }] }] },
+      { displayName: 'Store Name or ID', name: 'store', type: 'options', typeOptions: { loadOptionsMethod: 'getStores' }, default: '', required: true, description: 'Choose from your authorized Nutaan stores, or specify a store slug. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.' },
+    ],
+  };
+  methods = {
+    loadOptions: {
+      async getStores(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        const credentials = await this.getCredentials('nutaanCommerceApi');
+        const baseUrl = apiBaseUrl(credentials.baseUrl, this.getNode());
+        try {
+          const responseData = await this.helpers.httpRequestWithAuthentication.call(
+            this,
+            'nutaanCommerceApi',
+            { url: `${baseUrl}/stores`, method: 'GET', json: true, disableFollowRedirect: true },
+          );
+          const stores = (responseData as IDataObject).stores as Array<{ name: string; slug: string }> || [];
+          return stores.map(s => ({ name: `${s.name} (${s.slug})`, value: s.slug }));
+        } catch {
+          return [];
+        }
+      },
+    },
   };
   async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {
     const eventSource = this.getNodeParameter('eventSource', 'cod') === 'automation' ? 'automation' : 'cod';

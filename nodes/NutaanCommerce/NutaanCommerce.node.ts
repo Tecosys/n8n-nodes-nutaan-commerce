@@ -1,5 +1,5 @@
 import { NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
-import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IHttpRequestOptions, IDataObject } from 'n8n-workflow';
+import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IHttpRequestOptions, IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
 
 import { apiBaseUrl } from '../shared/api';
 
@@ -39,16 +39,51 @@ export class NutaanCommerce implements INodeType {
       { displayName: 'Source Version', name: 'sourceVersion', type: 'number', default: 1, typeOptions: { minValue: 1 }, required: true, displayOptions: { show: { operation: ['contactRecord'] } } },
       { displayName: 'Return Data', name: 'returnData', type: 'json', default: '{}', required: true, description: 'Eligibility: orderNumber and email. Create: also kind, lines and stable requestId. Manage: reference, operation and optional note, status or quote token.', displayOptions: { show: { operation: ['returnEligibility', 'createReturn', 'manageReturn'] } } },
       { displayName: 'Authorize Changes', name: 'authorizeChanges', type: 'boolean', default: false, description: 'Whether this workflow is explicitly authorized to ingest store events or create or modify returns and exchanges', displayOptions: { show: { operation: ['upsertRecord', 'createReturn', 'manageReturn', 'resolveCod'] } } },
-      { displayName: 'Store Slug', name: 'store', type: 'string', default: '', required: true, displayOptions: { hide: { operation: ['listStores'] } } },
+      { displayName: 'Store Slug Name or ID', name: 'store', type: 'options', typeOptions: { loadOptionsMethod: 'getStores' }, default: '', required: true, description: 'Choose from your authorized Nutaan stores, or specify a store slug. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.', displayOptions: { hide: { operation: ['listStores'] } } },
       { displayName: 'Verification ID', name: 'verificationId', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['getCod', 'contactCod', 'resolveCod'] } } },
       { displayName: 'Action ID', name: 'actionId', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['getAction', 'getAutomationAction'] } } },
       { displayName: 'Channel', name: 'channel', type: 'options', default: 'email', options: [{ name: 'Email', value: 'email' }, { name: 'Voice Call', value: 'voice' }, { name: 'WhatsApp', value: 'whatsapp', displayOptions: { show: { operation: ['contactRecord'] } } }], displayOptions: { show: { operation: ['contactCod', 'contactRecord'] } } },
+      { displayName: 'Voice Agent Name or ID', name: 'agentId', type: 'options', typeOptions: { loadOptionsMethod: 'getVoiceAgents' }, default: '', description: 'Choose a voice agent from your Nutaan account. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.', displayOptions: { show: { channel: ['voice'] } } },
       { displayName: 'Current Revision', name: 'revision', type: 'number', default: 0, typeOptions: { minValue: 0 }, required: true, description: 'Read the current verification first. A stale revision is rejected.', displayOptions: { show: { operation: ['contactCod', 'resolveCod'] } } },
       { displayName: 'Authorize Customer Contact', name: 'confirmed', type: 'boolean', default: false, description: 'Whether this workflow is authorized to send verification email or place a real, billed voice call', displayOptions: { show: { operation: ['contactCod', 'contactRecord'] } } },
       { displayName: 'Limit', name: 'limit', type: 'number', default: 50, description: 'Max number of results to return', typeOptions: { minValue: 1, maxValue: 100 }, displayOptions: { show: { operation: ['listOrders', 'listCod', 'listReturns', 'listRecords'] } } },
       { displayName: 'Cursor', name: 'cursor', type: 'string', default: '', description: 'The nextCursor returned by the previous list request', displayOptions: { show: { operation: ['listOrders', 'listCod', 'listReturns', 'listRecords'] } } },
       { displayName: 'Updated Since', name: 'since', type: 'string', default: '', description: 'Optional ISO timestamp', displayOptions: { show: { operation: ['listOrders', 'listCod', 'listReturns', 'listRecords'] } } },
     ],
+  };
+  methods = {
+    loadOptions: {
+      async getStores(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        const credentials = await this.getCredentials('nutaanCommerceApi');
+        const baseUrl = apiBaseUrl(credentials.baseUrl, this.getNode());
+        try {
+          const responseData = await this.helpers.httpRequestWithAuthentication.call(
+            this,
+            'nutaanCommerceApi',
+            { url: `${baseUrl}/stores`, method: 'GET', json: true, disableFollowRedirect: true },
+          );
+          const stores = (responseData as IDataObject).stores as Array<{ name: string; slug: string }> || [];
+          return stores.map(s => ({ name: `${s.name} (${s.slug})`, value: s.slug }));
+        } catch {
+          return [];
+        }
+      },
+      async getVoiceAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        const credentials = await this.getCredentials('nutaanCommerceApi');
+        const baseUrl = apiBaseUrl(credentials.baseUrl, this.getNode());
+        try {
+          const responseData = await this.helpers.httpRequestWithAuthentication.call(
+            this,
+            'nutaanCommerceApi',
+            { url: `${baseUrl}/agents`, method: 'GET', json: true, disableFollowRedirect: true },
+          );
+          const agents = (responseData as IDataObject).agents as Array<{ name: string; id: string }> || [];
+          return agents.map(a => ({ name: a.name || a.id, value: a.id }));
+        } catch {
+          return [];
+        }
+      },
+    },
   };
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('nutaanCommerceApi');
