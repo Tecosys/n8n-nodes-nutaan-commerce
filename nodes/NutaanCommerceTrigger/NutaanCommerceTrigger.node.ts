@@ -19,17 +19,13 @@ export class NutaanCommerceTrigger implements INodeType {
       async getStores(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
         const credentials = await this.getCredentials('nutaanCommerceApi');
         const baseUrl = apiBaseUrl(credentials.baseUrl, this.getNode());
-        try {
-          const responseData = await this.helpers.httpRequestWithAuthentication.call(
-            this,
-            'nutaanCommerceApi',
-            { url: `${baseUrl}/stores`, method: 'GET', json: true, disableFollowRedirect: true },
-          );
-          const stores = (responseData as IDataObject).stores as Array<{ name: string; slug: string }> || [];
-          return stores.map(s => ({ name: `${s.name} (${s.slug})`, value: s.slug }));
-        } catch {
-          return [];
-        }
+        const responseData = await this.helpers.httpRequestWithAuthentication.call(
+          this,
+          'nutaanCommerceApi',
+          { url: `${baseUrl}/stores`, method: 'GET', json: true, disableFollowRedirect: true },
+        );
+        const stores = (responseData as IDataObject).stores as Array<{ name: string; slug: string }> || [];
+        return stores.map(s => ({ name: `${s.name} (${s.slug})`, value: s.slug }));
       },
     },
   };

@@ -16,6 +16,30 @@ function load(file, name) {
 const action = load('NutaanCommerce/NutaanCommerce.node.ts', 'NutaanCommerce');
 const trigger = load('NutaanCommerceTrigger/NutaanCommerceTrigger.node.ts', 'NutaanCommerceTrigger');
 const base = { getCredentials: async () => ({}), getNode: () => ({}), getInputData: () => [{ json: {} }], continueOnFail: () => false };
+
+for (const [label, loader, collection, record, expected] of [
+  ['action stores', action.methods.loadOptions.getStores, 'stores', { name: 'Alpha', slug: 'alpha' }, { name: 'Alpha (alpha)', value: 'alpha' }],
+  ['trigger stores', trigger.methods.loadOptions.getStores, 'stores', { name: 'Alpha', slug: 'alpha' }, { name: 'Alpha (alpha)', value: 'alpha' }],
+  ['voice agents', action.methods.loadOptions.getVoiceAgents, 'agents', { name: 'Support', id: 'agent-1' }, { name: 'Support', value: 'agent-1' }],
+]) {
+  test(`${label} dropdown surfaces authentication and connection failures`, async () => {
+    for (const message of ['401: Invalid API key', 'ECONNREFUSED: Nutaan API unavailable']) {
+      const failure = new Error(message);
+      await assert.rejects(loader.call({ ...base, helpers: {
+        httpRequestWithAuthentication: async () => { throw failure; },
+      } }), error => error === failure);
+    }
+  });
+
+  test(`${label} dropdown still lists records and permits a genuinely empty account`, async () => {
+    const context = { ...base, helpers: {
+      httpRequestWithAuthentication: async () => ({ [collection]: [record] }),
+    } };
+    assert.equal(JSON.stringify(await loader.call(context)), JSON.stringify([expected]));
+    context.helpers.httpRequestWithAuthentication = async () => ({ [collection]: [] });
+    assert.equal((await loader.call(context)).length, 0);
+  });
+}
 test('contact is disabled until explicitly authorized, with no HTTP request', async () => {
   let calls = 0;
   await assert.rejects(action.execute.call({ ...base, getNodeParameter: name => ({ operation: 'contactCod', store: 'alpha', verificationId: 'x', confirmed: false }[name]), helpers: { httpRequestWithAuthentication: async () => { calls++; } } }));
