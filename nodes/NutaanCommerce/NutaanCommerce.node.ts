@@ -5,9 +5,9 @@ import { apiBaseUrl } from '../shared/api';
 
 export class NutaanCommerce implements INodeType {
   description: INodeTypeDescription = {
-    displayName: 'Nutaan Commerce', name: 'nutaanCommerce', group: ['transform'], version: 1,
-    description: 'Automate recovery, COD, delivery assistance and returns through Nutaan Commerce',
-    defaults: { name: 'Nutaan Commerce' }, icon: { light: 'file:nutaan.svg', dark: 'file:nutaan.dark.svg' }, subtitle: '={{$parameter.operation}}', usableAsTool: true, inputs: [NodeConnectionTypes.Main], outputs: [NodeConnectionTypes.Main],
+    displayName: 'AI Commerce', name: 'nutaanCommerce', group: ['transform'], version: 1,
+    description: 'Automate recovery, COD, delivery assistance and returns through AI Commerce',
+    defaults: { name: 'AI Commerce' }, icon: { light: 'file:nutaan.svg', dark: 'file:nutaan.dark.svg' }, subtitle: '={{$parameter.operation}}', usableAsTool: true, inputs: [NodeConnectionTypes.Main], outputs: [NodeConnectionTypes.Main],
     credentials: [{ name: 'nutaanCommerceApi', required: true }],
     properties: [
       { displayName: 'Resource', name: 'resource', type: 'options', noDataExpression: true, default: 'store', options: [{ name: 'Automation', value: 'automation' }, { name: 'COD Verification', value: 'cod' }, { name: 'Order', value: 'order' }, { name: 'Return', value: 'return' }, { name: 'Store', value: 'store' }] },

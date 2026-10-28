@@ -1,12 +1,15 @@
 {
   "name": "n8n-nodes-nutaan-commerce",
-  "version": "0.1.2",
-  "description": "Nutaan Commerce cart recovery, COD verification, delivery assistance and returns for n8n",
+  "version": "0.1.3",
+  "description": "AI Commerce cart recovery, COD verification, delivery assistance and returns for n8n",
   "license": "MIT",
   "keywords": [
     "n8n-community-node-package",
     "nutaan",
-    "commerce"
+    "commerce",
+    "ai-commerce",
+    "AI Commerce",
+    "aicommerce"
   ],
   "files": [
     "dist",

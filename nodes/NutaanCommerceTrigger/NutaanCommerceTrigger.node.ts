@@ -4,8 +4,8 @@ import { apiBaseUrl, DEFAULT_BASE_URL } from '../shared/api';
 
 export class NutaanCommerceTrigger implements INodeType {
   description: INodeTypeDescription = {
-    displayName: 'Nutaan Commerce Trigger', name: 'nutaanCommerceTrigger', group: ['trigger'], version: 1,
-    description: 'Poll COD or store automation updates after activation', defaults: { name: 'Nutaan Commerce Trigger' },
+    displayName: 'AI Commerce Trigger', name: 'nutaanCommerceTrigger', group: ['trigger'], version: 1,
+    description: 'Poll COD or store automation updates after activation', defaults: { name: 'AI Commerce Trigger' },
     inputs: [], outputs: [NodeConnectionTypes.Main], polling: true, icon: { light: 'file:nutaan.svg', dark: 'file:nutaan.dark.svg' }, subtitle: '={{$parameter.eventSource || "cod"}}',
     credentials: [{ name: 'nutaanCommerceApi', required: true }],
     properties: [

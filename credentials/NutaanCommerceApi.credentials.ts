@@ -7,7 +7,7 @@ export class NutaanCommerceApi implements ICredentialType {
   name = 'nutaanCommerceApi';
   icon: Icon = { light: 'file:nutaan.svg', dark: 'file:nutaan.dark.svg' };
   documentationUrl = 'https://nutaan.com/nutaan-commerce';
-  displayName = 'Nutaan Commerce API';
+  displayName = 'AI Commerce API';
   properties: INodeProperties[] = [{
     displayName: 'API Base URL', name: 'baseUrl', type: 'string',
     default: 'https://nutaan.com/api/commerce/integrations/v1',
@@ -23,7 +23,7 @@ export class NutaanCommerceApi implements ICredentialType {
     const base = new URL(baseUrl);
     if (target.origin !== base.origin || target.username || target.password ||
         !(target.pathname === base.pathname || target.pathname.startsWith(`${base.pathname}/`))) {
-      throw new NodeOperationError({ id: 'nutaanCommerceApi', name: 'Nutaan Commerce API', type: 'nutaanCommerceApi', typeVersion: 1, position: [0, 0], parameters: {} }, 'Request must use the configured Nutaan API.');
+      throw new NodeOperationError({ id: 'nutaanCommerceApi', name: 'AI Commerce API', type: 'nutaanCommerceApi', typeVersion: 1, position: [0, 0], parameters: {} }, 'Request must use the configured Nutaan API.');
     }
     return { ...requestOptions, url: target.toString(), disableFollowRedirect: true,
       headers: { ...requestOptions.headers, 'X-Nutaan-Commerce-Key': String(credentials.apiKey || '') } };

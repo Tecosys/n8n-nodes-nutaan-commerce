@@ -1,4 +1,6 @@
-# Nutaan Commerce for n8n
+# AI Commerce for n8n
+
+Search for **AI Commerce** in the n8n node picker after installing this package. The npm installation package remains `n8n-nodes-nutaan-commerce`.
 
 Preview community node package. Author: Tecosys, avishek@nutaan.com. Repository: Tecosys/n8n-nodes-nutaan-commerce.
 
@@ -15,7 +17,7 @@ These workflows require the matching backend integration deployment and merchant
 
 1. Deploy the integration branch to staging and enable COMMERCE_N8N_ENABLED=true there. It defaults to disabled. No new scheduler is installed.
 2. An existing Commerce owner issues a store-scoped key using POST /api/commerce/integrations/v1/credentials with their Commerce session bearer token. Example body: {"name":"n8n","stores":["your-store"],"scopes":["orders:read","cod:read","cod:contact","cod:write","returns:read","returns:write","automation:read","automation:write","automation:contact"]}. Grant only the scopes needed by each workflow. The key is displayed once. Never export session tokens or integration keys in workflow JSON.
-3. Configure Nutaan Commerce API credentials with the key and API Base URL. Default: https://nutaan.com/api/commerce/integrations/v1. Staging must use its own trusted HTTPS URL ending in /api/commerce/integrations/v1 and separate key. Redirects are disabled.
+3. Configure AI Commerce API credentials with the key and API Base URL. Default: https://nutaan.com/api/commerce/integrations/v1. Staging must use its own trusted HTTPS URL ending in /api/commerce/integrations/v1 and separate key. Redirects are disabled.
 4. Import a template and configure the credential on every Nutaan node and the store slug. Configure Header Auth on the webhook with a separate inbound secret. Store/provider signature verification must happen before forwarding normalized events; these templates are for a trusted merchant adapter, not an unauthenticated public shopper endpoint.
 5. Configure shop email transport, WhatsApp business binding/approved templates and dedicated voice agents as needed. Contact is disabled by default. Authorize Changes and Authorize Customer Contact are explicit workflow settings.
 6. Run staging checks using test recipients and mocked/sandbox providers before activating production workflows. A manual sample does not alter production polling state but authorized downstream actions can still contact customers.
